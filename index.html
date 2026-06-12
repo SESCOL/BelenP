@@ -474,7 +474,7 @@
 
 <nav>
   <button class="tab active" onclick="switchTab('verify')">🚗 Placa</button>
-  <button class="tab" onclick="switchTab('residents')">👥 Residentes</button>
+  <button class="tab" onclick="askPassword()">👥 Residentes</button>
 </nav>
 
 <main>
@@ -585,7 +585,35 @@
   </div>
 </div>
 
-<div id="toast"></div>
+<!-- ══ CONFIRM DELETE MODAL ══ -->
+<div class="modal-overlay" id="modal-confirm">
+  <div class="modal" style="max-width:340px; text-align:center">
+    <p class="modal-title" style="text-align:center">⚠️ ELIMINAR RESIDENTE</p>
+    <p style="font-size:0.88rem; color:var(--text-muted); margin-bottom:18px">¿Estás seguro? Esta acción no se puede deshacer.</p>
+    <div class="modal-actions" style="justify-content:center">
+      <button class="btn btn-ghost" onclick="cancelDelete()">Cancelar</button>
+      <button class="btn btn-danger" style="background:#ff4f4f22" onclick="confirmDelete()">Eliminar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PASSWORD MODAL ══ -->
+<div class="modal-overlay" id="modal-password">
+  <div class="modal" style="max-width:360px; text-align:center">
+    <p class="modal-title" style="text-align:center">🔒 ACCESO RESTRINGIDO</p>
+    <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:18px">Ingresa la contraseña para continuar</p>
+    <input type="password" id="password-input" placeholder="Contraseña"
+      style="text-align:center; letter-spacing:0.12em"
+      onkeydown="if(event.key==='Enter')submitPassword()">
+    <p id="password-error" style="color:var(--red); font-size:0.8rem; margin-top:10px; display:none">Contraseña incorrecta</p>
+    <div class="modal-actions" style="justify-content:center; margin-top:18px">
+      <button class="btn btn-ghost" onclick="closePasswordModal()">Cancelar</button>
+      <button class="btn btn-accent" onclick="submitPassword()">Entrar</button>
+    </div>
+  </div>
+</div>
+
+
 
 <script>
 // ── State ──────────────────────────────────────────────
@@ -597,22 +625,36 @@ let todayChecks = 0;
 
 // ── Clock ──────────────────────────────────────────────
 function updateClock() {
+  const el = document.getElementById('clock');
+  if (!el) return;
   const now = new Date();
-  document.getElementById('clock').textContent =
+  el.textContent =
     now.toLocaleDateString('es-MX', {weekday:'short', day:'numeric', month:'short'}) + ' · ' +
     now.toLocaleTimeString('es-MX', {hour:'2-digit', minute:'2-digit'});
 }
 setInterval(updateClock, 1000);
 updateClock();
 
+// ── Safe getter ────────────────────────────────────────
+function el(id) { return document.getElementById(id); }
+
 // ── Tab switching ──────────────────────────────────────
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   event.target.classList.add('active');
-  document.getElementById('page-' + name).classList.add('active');
+  el('page-' + name).classList.add('active');
   if (name === 'residents') { renderResidents(); updateStats(); }
-  if (name === 'log') renderLog();
+}
+
+function switchTabDirect(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const tabs = document.querySelectorAll('.tab');
+  if (name === 'residents') tabs[1].classList.add('active');
+  else tabs[0].classList.add('active');
+  el('page-' + name).classList.add('active');
+  if (name === 'residents') { renderResidents(); updateStats(); }
 }
 
 // ── Save ───────────────────────────────────────────────
@@ -627,50 +669,48 @@ function normPlate(p) { return p.trim().toUpperCase().replace(/[\s\-\.]/g, ''); 
 // ── Lookup plate ───────────────────────────────────────
 function findResident(plate) {
   const n = normPlate(plate);
-  return residents.find(r =>
-    r.plates.map(normPlate).includes(n)
-  ) || null;
+  return residents.find(r => r.plates && r.plates.map(normPlate).includes(n)) || null;
 }
 
 // ── Verify ─────────────────────────────────────────────
 function checkPlate() {
-  const raw = document.getElementById('verify-input').value.trim();
+  const raw = (el('verify-input').value || '').trim();
   if (!raw) return;
 
   const resident = findResident(raw);
-  const box = document.getElementById('result-box');
+  const box = el('result-box');
   box.className = 'result-box show ' + (resident ? 'ok' : 'fail');
-  document.getElementById('result-status-text').textContent = resident ? 'ACCESO PERMITIDO' : 'PLACA NO REGISTRADA';
-  document.getElementById('result-name').textContent = resident ? resident.name : normPlate(raw);
-  document.getElementById('result-detail').textContent = resident
-    ? `${resident.dept} · ${resident.phone}${resident.notes ? ' · ' + resident.notes : ''}`
+  el('result-status-text').textContent = resident ? 'ACCESO PERMITIDO' : 'PLACA NO REGISTRADA';
+  el('result-name').textContent = resident ? (resident.name || normPlate(raw)) : normPlate(raw);
+  el('result-detail').textContent = resident
+    ? [resident.dept, resident.phone, resident.notes].filter(Boolean).join(' · ')
     : 'Esta placa no está en el catálogo de residentes.';
 
-  // Log
-  const entry = {
+  accessLog.unshift({
     plate: normPlate(raw),
-    name: resident ? resident.name : '—',
-    dept: resident ? resident.dept : '—',
+    name: resident ? (resident.name || '—') : '—',
+    dept: resident ? (resident.dept || '—') : '—',
     ok: !!resident,
     time: new Date().toISOString()
-  };
-  accessLog.unshift(entry);
+  });
   if (accessLog.length > 200) accessLog.pop();
   todayChecks++;
-  document.getElementById('stat-checks').textContent = todayChecks;
   saveData();
 }
 
 // ── Residents render ───────────────────────────────────
 function renderResidents() {
-  const q = (document.getElementById('search-input').value || '').toLowerCase();
-  const list = document.getElementById('resident-list');
-  const filtered = residents.filter(r =>
-    !q ||
-    r.name.toLowerCase().includes(q) ||
-    r.dept.toLowerCase().includes(q) ||
-    r.plates.some(p => p.toLowerCase().includes(q))
-  );
+  const searchEl = el('search-input');
+  const list = el('resident-list');
+  if (!list) return;
+
+  const q = (searchEl ? searchEl.value : '').toLowerCase();
+  const filtered = residents.filter(r => {
+    if (!q) return true;
+    return (r.name || '').toLowerCase().includes(q) ||
+           (r.dept || '').toLowerCase().includes(q) ||
+           (r.plates || []).some(p => p.toLowerCase().includes(q));
+  });
 
   if (!filtered.length) {
     list.innerHTML = '<div class="empty">Sin resultados.</div>';
@@ -680,11 +720,11 @@ function renderResidents() {
   list.innerHTML = filtered.map(r => `
     <div class="resident-card">
       <div>
-        ${r.plates.map(p => `<div class="plate-badge">${p.toUpperCase()}</div>`).join('<br>')}
+        ${(r.plates || []).map(p => `<div class="plate-badge">${p.toUpperCase()}</div>`).join('<br>')}
       </div>
       <div class="resident-info">
-        <div class="resident-name">${r.name}</div>
-        <div class="resident-meta">${r.dept} · ${r.phone}${r.notes ? ' · ' + r.notes : ''}</div>
+        <div class="resident-name">${r.name || '—'}</div>
+        <div class="resident-meta">${[r.dept, r.phone, r.notes].filter(Boolean).join(' · ') || ''}</div>
       </div>
       <div class="resident-actions">
         <button class="btn btn-ghost" style="padding:7px 12px;font-size:0.8rem" onclick="editResident('${r.id}')">Editar</button>
@@ -695,45 +735,47 @@ function renderResidents() {
 }
 
 function updateStats() {
-  document.getElementById('stat-total').textContent = residents.length;
-  const plates = residents.reduce((a, r) => a + r.plates.length, 0);
-  document.getElementById('stat-plates').textContent = plates;
+  const st = el('stat-total');
+  const sp = el('stat-plates');
+  const sc = el('stat-checks');
+  if (st) st.textContent = residents.length;
+  if (sp) sp.textContent = residents.reduce((a, r) => a + (r.plates || []).length, 0);
+  if (sc) sc.textContent = todayChecks;
 }
 
 // ── Modal ──────────────────────────────────────────────
 function openAddModal() {
   editingId = null;
-  document.getElementById('modal-title').textContent = 'Nuevo residente';
-  ['f-plates','f-name','f-dept','f-phone','f-notes'].forEach(id => document.getElementById(id).value = '');
-  document.getElementById('modal').classList.add('show');
+  el('modal-title').textContent = 'Nuevo residente';
+  ['f-plates','f-name','f-dept','f-phone','f-notes'].forEach(id => { if(el(id)) el(id).value = ''; });
+  el('modal').classList.add('show');
 }
 
 function editResident(id) {
   const r = residents.find(x => x.id === id);
   if (!r) return;
   editingId = id;
-  document.getElementById('modal-title').textContent = 'Editar residente';
-  document.getElementById('f-plates').value = r.plates.join(', ');
-  document.getElementById('f-name').value = r.name;
-  document.getElementById('f-dept').value = r.dept;
-  document.getElementById('f-phone').value = r.phone;
-  document.getElementById('f-notes').value = r.notes || '';
-  document.getElementById('modal').classList.add('show');
+  el('modal-title').textContent = 'Editar residente';
+  el('f-plates').value = (r.plates || []).join(', ');
+  el('f-name').value = r.name || '';
+  el('f-dept').value = r.dept || '';
+  el('f-phone').value = r.phone || '';
+  el('f-notes').value = r.notes || '';
+  el('modal').classList.add('show');
 }
 
-function closeModal() { document.getElementById('modal').classList.remove('show'); }
+function closeModal() { el('modal').classList.remove('show'); }
 
 function saveResident() {
-  const plates = document.getElementById('f-plates').value.split(',').map(p => p.trim().toUpperCase()).filter(Boolean);
-  const name = document.getElementById('f-name').value.trim();
-  const dept = document.getElementById('f-dept').value.trim();
-  const phone = document.getElementById('f-phone').value.trim();
-  const notes = document.getElementById('f-notes').value.trim();
-
-  if (!plates.length || !name || !dept || !phone) {
-    showToast('⚠️ Completa placa, nombre, departamento y teléfono.');
+  const plates = (el('f-plates').value || '').split(',').map(p => p.trim().toUpperCase()).filter(Boolean);
+  if (!plates.length) {
+    showToast('⚠️ La placa es obligatoria.');
     return;
   }
+  const name  = (el('f-name').value || '').trim();
+  const dept  = (el('f-dept').value || '').trim();
+  const phone = (el('f-phone').value || '').trim();
+  const notes = (el('f-notes').value || '').trim();
 
   if (editingId) {
     const idx = residents.findIndex(r => r.id === editingId);
@@ -750,48 +792,34 @@ function saveResident() {
   updateStats();
 }
 
+let pendingDeleteId = null;
+
 function deleteResident(id) {
-  if (!confirm('¿Eliminar este residente?')) return;
-  residents = residents.filter(r => r.id !== id);
+  pendingDeleteId = id;
+  el('modal-confirm').classList.add('show');
+}
+
+function confirmDelete() {
+  if (!pendingDeleteId) return;
+  residents = residents.filter(r => r.id !== pendingDeleteId);
+  pendingDeleteId = null;
+  el('modal-confirm').classList.remove('show');
   saveData();
   renderResidents();
   updateStats();
   showToast('🗑️ Residente eliminado.');
 }
 
-// ── Log render ─────────────────────────────────────────
-function renderLog() {
-  const list = document.getElementById('log-list');
-  if (!accessLog.length) {
-    list.innerHTML = '<div class="empty">Sin registros aún.</div>';
-    return;
-  }
-  list.innerHTML = accessLog.map(e => {
-    const d = new Date(e.time);
-    const time = d.toLocaleTimeString('es-MX', {hour:'2-digit', minute:'2-digit'}) + ' ' +
-                 d.toLocaleDateString('es-MX', {day:'numeric', month:'short'});
-    return `
-      <div class="log-item">
-        <span class="log-plate">${e.plate}</span>
-        <span class="log-name">${e.name}${e.dept !== '—' ? ' <span style="color:var(--text-muted)">· '+e.dept+'</span>' : ''}</span>
-        <span class="log-time">${time}</span>
-        <span class="log-badge ${e.ok ? 'ok' : 'fail'}">${e.ok ? 'OK' : 'NO'}</span>
-      </div>
-    `;
-  }).join('');
-}
-
-function clearLog() {
-  if (!confirm('¿Borrar todo el historial?')) return;
-  accessLog = [];
-  saveData();
-  renderLog();
+function cancelDelete() {
+  pendingDeleteId = null;
+  el('modal-confirm').classList.remove('show');
 }
 
 // ── Toast ──────────────────────────────────────────────
 let toastTimer;
 function showToast(msg) {
-  const t = document.getElementById('toast');
+  const t = el('toast');
+  if (!t) return;
   t.textContent = msg;
   t.style.display = 'block';
   clearTimeout(toastTimer);
@@ -802,56 +830,52 @@ function showToast(msg) {
 async function startCamera() {
   try {
     stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-    const video = document.getElementById('video-preview');
+    const video = el('video-preview');
     video.srcObject = stream;
     video.style.display = 'block';
-    document.getElementById('btn-start-cam').style.display = 'none';
-    document.getElementById('btn-snap').style.display = 'inline-block';
-    document.getElementById('btn-stop-cam').style.display = 'inline-block';
-    document.getElementById('snap-preview').style.display = 'none';
-    document.getElementById('ocr-result').textContent = '';
+    el('btn-start-cam').style.display = 'none';
+    el('btn-snap').style.display = 'inline-block';
+    el('btn-stop-cam').style.display = 'inline-block';
+    el('snap-preview').style.display = 'none';
+    el('ocr-result').textContent = '';
   } catch(e) {
     showToast('📵 No se pudo acceder a la cámara.');
   }
 }
 
 function snapPhoto() {
-  const video = document.getElementById('video-preview');
-  const canvas = document.getElementById('canvas-snap');
+  const video = el('video-preview');
+  const canvas = el('canvas-snap');
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
   canvas.getContext('2d').drawImage(video, 0, 0);
-
-  const img = document.getElementById('snap-preview');
+  const img = el('snap-preview');
   img.src = canvas.toDataURL('image/jpeg');
   img.style.display = 'block';
   video.style.display = 'none';
-  document.getElementById('btn-snap').style.display = 'none';
-  document.getElementById('btn-retake').style.display = 'inline-block';
-  document.getElementById('ocr-result').textContent = '⏳ Analizando placa…';
-
-  // Send to Claude API for plate reading
+  el('btn-snap').style.display = 'none';
+  el('btn-retake').style.display = 'inline-block';
+  el('ocr-result').textContent = '⏳ Analizando placa…';
   readPlateWithAI(canvas.toDataURL('image/jpeg'));
 }
 
 function retakePhoto() {
-  const video = document.getElementById('video-preview');
-  video.style.display = 'block';
-  document.getElementById('snap-preview').style.display = 'none';
-  document.getElementById('btn-snap').style.display = 'inline-block';
-  document.getElementById('btn-retake').style.display = 'none';
-  document.getElementById('ocr-result').textContent = '';
+  el('video-preview').style.display = 'block';
+  el('snap-preview').style.display = 'none';
+  el('btn-snap').style.display = 'inline-block';
+  el('btn-retake').style.display = 'none';
+  el('ocr-result').textContent = '';
 }
 
 function stopCamera() {
   if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
-  document.getElementById('video-preview').style.display = 'none';
-  document.getElementById('snap-preview').style.display = 'none';
-  document.getElementById('btn-start-cam').style.display = 'inline-block';
-  document.getElementById('btn-snap').style.display = 'none';
-  document.getElementById('btn-retake').style.display = 'none';
-  document.getElementById('btn-stop-cam').style.display = 'none';
-  document.getElementById('ocr-result').textContent = '';
+  el('video-preview').style.display = 'none';
+  el('snap-preview').style.display = 'none';
+  el('btn-start-cam').style.display = 'inline-block';
+  el('btn-snap').style.display = 'none';
+  el('btn-retake').style.display = 'none';
+  el('btn-stop-cam').style.display = 'none';
+  el('ocr-result').textContent = '';
 }
 
 async function readPlateWithAI(dataUrl) {
@@ -863,43 +887,49 @@ async function readPlateWithAI(dataUrl) {
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
         max_tokens: 100,
-        messages: [{
-          role: 'user',
-          content: [
-            { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: base64 } },
-            { type: 'text', text: 'Extract the license plate text from this image. Respond with ONLY the plate text, no spaces, no explanation. If no plate is visible, respond with: NO_PLATE' }
-          ]
-        }]
+        messages: [{ role: 'user', content: [
+          { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: base64 } },
+          { type: 'text', text: 'Extract the license plate text from this image. Respond with ONLY the plate text, no spaces, no explanation. If no plate is visible, respond with: NO_PLATE' }
+        ]}]
       })
     });
     const data = await res.json();
     const plate = data.content?.[0]?.text?.trim().toUpperCase() || '';
     if (!plate || plate === 'NO_PLATE') {
-      document.getElementById('ocr-result').textContent = '⚠️ No se detectó placa. Ingresa manualmente.';
+      el('ocr-result').textContent = '⚠️ No se detectó placa. Ingresa manualmente.';
     } else {
-      document.getElementById('ocr-result').textContent = `Detectada: ${plate}`;
-      document.getElementById('verify-input').value = plate;
+      el('ocr-result').textContent = `Detectada: ${plate}`;
+      el('verify-input').value = plate;
     }
   } catch(e) {
-    document.getElementById('ocr-result').textContent = '⚠️ Error al analizar. Ingresa manualmente.';
+    el('ocr-result').textContent = '⚠️ Error al analizar. Ingresa manualmente.';
   }
 }
 
-// ── Regime ─────────────────────────────────────────────
-let activeRegime = 1;
-
-function selectRegime(num, el) {
-  activeRegime = num;
-  document.querySelectorAll('.regime-title').forEach(b => b.classList.remove('active'));
-  el.classList.add('active');
-  const ind = document.getElementById('regime-indicator');
-  if (ind) ind.textContent = 'RÉGIMEN ' + num;
-  showToast('📍 Régimen ' + num + ' seleccionado');
+// ── Password ────────────────────────────────────────────
+function askPassword() {
+  el('password-input').value = '';
+  el('password-error').style.display = 'none';
+  el('modal-password').classList.add('show');
+  setTimeout(() => el('password-input').focus(), 100);
 }
 
+function submitPassword() {
+  const val = el('password-input').value;
+  if (val === 'Control78$') {
+    el('modal-password').classList.remove('show');
+    switchTabDirect('residents');
+  } else {
+    el('password-error').style.display = 'block';
+    el('password-input').value = '';
+    el('password-input').focus();
+  }
+}
 
-renderResidents();
-updateStats();
+function closePasswordModal() {
+  el('modal-password').classList.remove('show');
+}
+
 </script>
 </body>
 </html>
