@@ -156,6 +156,7 @@ input::placeholder{color:var(--muted)}
     </div>
     <div class="search-row">
       <input type="text" id="search-input" placeholder="Buscar por nombre, placa o depto…" oninput="renderResidents()">
+      <button class="btn btn-ghost" onclick="exportResidents()">⬇️ Exportar</button>
       <button class="btn btn-accent" onclick="openAddModal()">+ Agregar</button>
     </div>
     <div class="resident-list" id="resident-list"><div class="empty">Cargando…</div></div>
@@ -336,6 +337,35 @@ function updateStats() {
   if(st) st.textContent = residents.length;
   if(sp) sp.textContent = residents.reduce((a,r)=>a+(r.plates||[]).length,0);
   if(sc) sc.textContent = todayChecks;
+}
+
+// ── Exportar residentes a CSV ───────────────────────────
+function exportResidents() {
+  if (!residents.length) { showToast('No hay residentes para exportar.'); return; }
+  const headers = ['Nombre','Departamento','Teléfono','Placas','Notas'];
+  const escapeCsv = (v) => {
+    const s = (v ?? '').toString().replace(/"/g,'""');
+    return /[",\n]/.test(s) ? `"${s}"` : s;
+  };
+  const rows = residents.map(r => [
+    r.name || '',
+    r.dept || '',
+    r.phone || '',
+    (r.plates || []).join(' / '),
+    r.notes || ''
+  ].map(escapeCsv).join(','));
+  const csv = '\uFEFF' + [headers.join(','), ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const fecha = new Date().toISOString().slice(0,10);
+  a.href = url;
+  a.download = `residentes-unidad-belen-${fecha}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('Lista exportada ✅');
 }
 
 // ── Modal ────────────────────────────────────────────────
