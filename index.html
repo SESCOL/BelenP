@@ -9,6 +9,15 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Unidad Belén">
 <meta name="theme-color" content="#0f0f11">
+<meta property="og:title" content="Unidad Belén — Control de Estacionamiento">
+<meta property="og:description" content="Control de acceso y verificación de placas">
+<meta property="og:image" content="https://sescol.github.io/BelenP/icon-512.png">
+<meta property="og:url" content="https://sescol.github.io/BelenP/">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Unidad Belén — Control de Estacionamiento">
+<meta name="twitter:description" content="Control de acceso y verificación de placas">
+<meta name="twitter:image" content="https://sescol.github.io/BelenP/icon-512.png">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
 :root{--bg:#0f0f11;--surface:#18181c;--surface2:#222228;--border:#2e2e38;--accent:#c8f135;--text:#f0f0f0;--muted:#7a7a8c;--red:#ff4f4f;--green:#4fffb0;--yellow:#ffd166;--r:10px}
@@ -453,7 +462,7 @@ if ('serviceWorker' in navigator) {
 
 // ── Compartir / instalar desde WhatsApp ────────────────────
 function shareApp() {
-  const url = window.location.href.split('?')[0].split('#')[0];
+  const url = 'https://sescol.github.io/BelenP/';
   const text = 'Instala la app de Unidad Belén para control de acceso vehicular:';
   if (navigator.share) {
     navigator.share({ title: 'Unidad Belén', text, url }).catch(()=>{});
