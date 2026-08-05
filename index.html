@@ -94,8 +94,12 @@ input::placeholder{color:var(--muted)}
 <body>
 <header>
   <div class="logo-wrap"><div class="logo">UNIDAD BELÉN</div></div>
+  <button id="shareBtn" class="btn btn-ghost" style="padding:8px 14px;font-size:.8rem;display:flex;align-items:center;gap:6px;margin-right:12px" onclick="shareApp()">📲 Compartir</button>
   <div style="font-size:.78rem;color:var(--muted)" id="clock"></div>
 </header>
+<div id="inAppBanner" style="display:none;background:var(--yellow);color:#111;font-size:.82rem;padding:10px 18px;text-align:center;font-weight:600">
+  ⚠️ Estás viendo esto desde WhatsApp. Toca los <b>••• (tres puntos)</b> arriba y elige <b>"Abrir en el navegador"</b> para poder instalar la app.
+</div>
 <nav>
   <button class="tab active" onclick="switchTab('verify',this)">🚗 Placa</button>
   <button class="tab" onclick="askPassword()">👥 Residentes</button>
@@ -446,6 +450,27 @@ function closePasswordModal() { el('modal-password').classList.remove('show'); }
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', ()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
 }
+
+// ── Compartir / instalar desde WhatsApp ────────────────────
+function shareApp() {
+  const url = window.location.href.split('?')[0].split('#')[0];
+  const text = 'Instala la app de Unidad Belén para control de acceso vehicular:';
+  if (navigator.share) {
+    navigator.share({ title: 'Unidad Belén', text, url }).catch(()=>{});
+  } else {
+    const waUrl = 'https://wa.me/?text=' + encodeURIComponent(text + ' ' + url);
+    window.open(waUrl, '_blank');
+  }
+}
+
+// Detecta si se abrió desde el navegador interno de WhatsApp/Instagram/Facebook
+(function detectInApp(){
+  const ua = navigator.userAgent || '';
+  const isInApp = /WhatsApp|Instagram|FBAN|FBAV|Line\//i.test(ua);
+  if (isInApp) {
+    document.getElementById('inAppBanner').style.display = 'block';
+  }
+})();
 </script>
 </body>
 </html>
