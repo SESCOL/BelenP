@@ -103,15 +103,17 @@ input::placeholder{color:var(--muted)}
 <body>
 <header>
   <div class="logo-wrap"><div class="logo">UNIDAD BELÉN</div></div>
-  <button id="shareBtn" class="btn btn-ghost" style="padding:8px 14px;font-size:.8rem;display:flex;align-items:center;gap:6px;margin-right:12px" onclick="shareApp()">📲 Compartir</button>
   <div style="font-size:.78rem;color:var(--muted)" id="clock"></div>
 </header>
 <div id="inAppBanner" style="display:none;background:var(--yellow);color:#111;font-size:.82rem;padding:10px 18px;text-align:center;font-weight:600">
   ⚠️ Estás viendo esto desde WhatsApp. Toca los <b>••• (tres puntos)</b> arriba y elige <b>"Abrir en el navegador"</b> para poder instalar la app.
 </div>
 <div id="installBanner" style="display:none;align-items:center;justify-content:space-between;gap:12px;background:var(--accent);color:#111;font-size:.85rem;padding:12px 18px;font-weight:600">
-  <span>📲 Instala Unidad Belén para acceso rápido</span>
-  <button onclick="installNow()" style="background:#111;color:var(--accent);border:none;border-radius:7px;padding:8px 16px;font-weight:700;cursor:pointer;font-size:.82rem">Instalar ahora</button>
+  <span id="installBannerText">📲 Instala Unidad Belén para acceso rápido</span>
+  <button id="installBannerBtn" onclick="installNow()" style="background:#111;color:var(--accent);border:none;border-radius:7px;padding:8px 16px;font-weight:700;cursor:pointer;font-size:.82rem">Instalar ahora</button>
+</div>
+<div id="installSuccess" style="display:none;align-items:center;justify-content:center;gap:8px;background:var(--green);color:#111;font-size:.85rem;padding:12px 18px;font-weight:600;text-align:center">
+  ✅ ¡Unidad Belén se instaló! Búscala en tus <b>aplicaciones</b> o en tu <b>pantalla principal</b>.
 </div>
 <nav>
   <button class="tab active" onclick="switchTab('verify',this)">🚗 Placa</button>
@@ -137,6 +139,7 @@ input::placeholder{color:var(--muted)}
       <p class="section-title">Ingresa la placa</p>
       <input type="text" id="verify-input" placeholder="ABC-123" maxlength="10" oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter')checkPlate()">
       <button class="btn btn-accent btn-full" style="max-width:360px;margin:0 auto" onclick="checkPlate()">Verificar placa</button>
+      <button id="shareBtn" class="btn btn-ghost btn-full" style="max-width:360px;margin:10px auto 0;display:flex;align-items:center;justify-content:center;gap:6px" onclick="shareApp()">📲 Compartir</button>
       <div class="result-box" id="result-box">
         <div class="result-status"><span class="status-dot"></span><span id="result-status-text"></span></div>
         <div class="result-name" id="result-name"></div>
@@ -520,7 +523,33 @@ function installNow() {
 window.addEventListener('appinstalled', () => {
   const banner = document.getElementById('installBanner');
   if (banner) banner.style.display = 'none';
+  showInstallSuccess();
 });
+
+function showInstallSuccess() {
+  const el = document.getElementById('installSuccess');
+  if (!el) return;
+  el.style.display = 'flex';
+  setTimeout(() => { el.style.display = 'none'; }, 8000);
+}
+
+// ── iPhone/Safari: no existe instalación automática (restricción de Apple) ──
+(function iosInstallHint(){
+  const ua = navigator.userAgent;
+  const isIOS = /iPhone|iPad|iPod/.test(ua) && !window.MSStream;
+  const isStandalone = window.navigator.standalone === true ||
+                        window.matchMedia('(display-mode: standalone)').matches;
+  if (isIOS && !isStandalone) {
+    const banner = document.getElementById('installBanner');
+    const text = document.getElementById('installBannerText');
+    const btn = document.getElementById('installBannerBtn');
+    if (banner && text && btn) {
+      text.textContent = '📲 Toca compartir (□↑) y elige "Agregar a pantalla de inicio"';
+      btn.style.display = 'none';
+      banner.style.display = 'flex';
+    }
+  }
+})();
 </script>
 </body>
 </html>
