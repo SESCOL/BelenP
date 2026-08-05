@@ -109,6 +109,10 @@ input::placeholder{color:var(--muted)}
 <div id="inAppBanner" style="display:none;background:var(--yellow);color:#111;font-size:.82rem;padding:10px 18px;text-align:center;font-weight:600">
   ⚠️ Estás viendo esto desde WhatsApp. Toca los <b>••• (tres puntos)</b> arriba y elige <b>"Abrir en el navegador"</b> para poder instalar la app.
 </div>
+<div id="installBanner" style="display:none;align-items:center;justify-content:space-between;gap:12px;background:var(--accent);color:#111;font-size:.85rem;padding:12px 18px;font-weight:600">
+  <span>📲 Instala Unidad Belén para acceso rápido</span>
+  <button onclick="installNow()" style="background:#111;color:var(--accent);border:none;border-radius:7px;padding:8px 16px;font-weight:700;cursor:pointer;font-size:.82rem">Instalar ahora</button>
+</div>
 <nav>
   <button class="tab active" onclick="switchTab('verify',this)">🚗 Placa</button>
   <button class="tab" onclick="askPassword()">👥 Residentes</button>
@@ -461,9 +465,19 @@ if ('serviceWorker' in navigator) {
 }
 
 // ── Compartir / instalar desde WhatsApp ────────────────────
-function shareApp() {
+async function shareApp() {
   const url = 'https://sescol.github.io/BelenP/';
   const text = 'Instala la app de Unidad Belén para control de acceso vehicular:';
+  try {
+    const resp = await fetch('icon-512.png');
+    const blob = await resp.blob();
+    const file = new File([blob], 'unidad-belen.png', { type: 'image/png' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: 'Unidad Belén', text: text + ' ' + url });
+      return;
+    }
+  } catch(e) {}
+  // Respaldo: compartir solo texto+link si no se puede compartir la imagen
   if (navigator.share) {
     navigator.share({ title: 'Unidad Belén', text, url }).catch(()=>{});
   } else {
@@ -480,6 +494,33 @@ function shareApp() {
     document.getElementById('inAppBanner').style.display = 'block';
   }
 })();
+
+// ── Instalación con un solo toque ───────────────────────────
+// Los navegadores nunca instalan una PWA sin que la persona lo confirme
+// (es una regla de seguridad, ningún sitio puede saltarse ese permiso).
+// Esto muestra el banner de instalación de inmediato al abrir el link,
+// para que solo haga falta UN toque.
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  const banner = document.getElementById('installBanner');
+  if (banner) banner.style.display = 'flex';
+});
+function installNow() {
+  const banner = document.getElementById('installBanner');
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.finally(() => {
+      deferredPrompt = null;
+      if (banner) banner.style.display = 'none';
+    });
+  }
+}
+window.addEventListener('appinstalled', () => {
+  const banner = document.getElementById('installBanner');
+  if (banner) banner.style.display = 'none';
+});
 </script>
 </body>
 </html>
