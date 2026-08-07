@@ -122,7 +122,7 @@ input::placeholder{color:var(--muted)}
 <main>
   <!-- VERIFY -->
   <div class="page active" id="page-verify">
-    <div id="regime-indicator">RÉGIMEN 1, 2, 3</div>
+    <div id="regime-indicator">RÉGIMEN 1 </div>
     <div class="camera-section">
       <p class="section-title">📷 Cámara — apunta a la placa y escríbela abajo</p>
       <video id="video-preview" autoplay playsinline></video>
@@ -574,7 +574,7 @@ function showInstallSuccess() {
     const text = document.getElementById('installBannerText');
     const btn = document.getElementById('installBannerBtn');
     if (banner && text && btn) {
-      text.textContent = '📲 Toca compartir (□↑) y elige "Agregar a pantalla de inicio"';
+      text.textContent = '📲 Toca compartir APP (□↑) y elige "Agregar a pantalla de inicio"';
       btn.style.display = 'none';
       banner.style.display = 'flex';
     }
