@@ -36,7 +36,7 @@ nav{display:flex;gap:4px;padding:16px 28px 0;border-bottom:1px solid var(--borde
 .tab.active{background:var(--bg);color:var(--accent);border-top:2px solid var(--accent)}
 main{flex:1;padding:28px;max-width:900px;width:100%;margin:0 auto}
 .page{display:none}.page.active{display:block}
-.section-title{font-family:'Space Mono',monospace;font-size:.72rem;letter-spacing:.14em;color:var(--muted);text-transform:uppercase;margin-bottom:16px}
+.section-title{font-family:'Space Mono',monospace;font-size:.72rem;letter-spacing:.14em;color:#fff;text-transform:uppercase;margin-bottom:16px}
 .card{background:rgba(24,24,28,.88);backdrop-filter:blur(4px);border:1px solid var(--border);border-radius:var(--r);padding:22px;margin-bottom:20px}
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .form-group{display:flex;flex-direction:column;gap:6px}
@@ -63,7 +63,7 @@ input::placeholder{color:var(--muted)}
 .resident-meta{font-size:.8rem;color:var(--muted);margin-top:3px}
 .resident-actions{display:flex;gap:8px}
 .verify-big{text-align:center;padding:32px 0 24px}
-.verify-big input{font-family:'Space Mono',monospace;font-size:2.2rem;letter-spacing:.22em;text-align:center;text-transform:uppercase;max-width:360px;margin:0 auto 20px;display:block;padding:18px 20px;background:var(--surface2);border:2px solid var(--border);border-radius:12px;color:var(--yellow)}
+.verify-big input{font-family:'Space Mono',monospace;font-size:2.2rem;letter-spacing:.22em;text-align:center;text-transform:uppercase;max-width:360px;margin:0 auto 20px;display:block;padding:18px 20px;background:var(--surface2);border:2px solid var(--border);border-radius:12px;color:#fff}
 .verify-big input:focus{border-color:var(--accent)}
 .result-box{border-radius:var(--r);padding:22px 24px;margin-top:20px;display:none;animation:fadeIn .25s ease}
 .result-box.show{display:block}
@@ -122,12 +122,13 @@ input::placeholder{color:var(--muted)}
 <main>
   <!-- VERIFY -->
   <div class="page active" id="page-verify">
-    <div id="regime-indicator">RÉGIMEN 1 </div>
+    <div id="regime-indicator">RÉGIMEN 1, 2, 3</div>
     <div class="camera-section">
       <p class="section-title">📷 Cámara — apunta a la placa y escríbela abajo</p>
       <video id="video-preview" autoplay playsinline></video>
       <canvas id="canvas-snap"></canvas>
       <img id="snap-preview" alt="Foto de placa">
+      <p id="ocr-status" style="display:none;font-size:.82rem;color:var(--accent);margin-top:8px">🔎 Leyendo placa…</p>
       <div class="camera-controls">
         <button class="btn btn-ghost" id="btn-start-cam" onclick="startCamera()">Abrir cámara</button>
         <button class="btn btn-accent" id="btn-snap" onclick="snapPhoto()" style="display:none">Tomar foto</button>
@@ -213,6 +214,7 @@ input::placeholder{color:var(--muted)}
 <div id="toast"></div>
 
 <!-- Firebase SDKs -->
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
@@ -455,11 +457,37 @@ function snapPhoto() {
   v.style.display='none';
   el('btn-snap').style.display='none';
   el('btn-retake').style.display='inline-block';
-  el('verify-input').focus();
+  runPlateOCR(c);
+}
+
+// ── OCR de placa sobre la foto capturada ────────────────
+async function runPlateOCR(canvas) {
+  if (typeof Tesseract === 'undefined') { el('verify-input').focus(); return; }
+  const status = el('ocr-status');
+  status.style.display = 'block';
+  try {
+    const { data } = await Tesseract.recognize(canvas, 'eng', {
+      tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-'
+    });
+    let text = (data.text || '').replace(/[^A-Z0-9]/gi, '').toUpperCase().slice(0, 10);
+    if (text) {
+      el('verify-input').value = text;
+      showToast('Placa detectada — revisa que sea correcta');
+    } else {
+      showToast('No se pudo leer la placa, escríbela manualmente');
+    }
+  } catch(e) {
+    showToast('No se pudo leer la placa, escríbela manualmente');
+  } finally {
+    status.style.display = 'none';
+    el('verify-input').focus();
+    el('verify-input').select();
+  }
 }
 function retakePhoto() {
   el('video-preview').style.display='block';
   el('snap-preview').style.display='none';
+  el('ocr-status').style.display='none';
   el('btn-snap').style.display='inline-block';
   el('btn-retake').style.display='none';
 }
@@ -574,7 +602,7 @@ function showInstallSuccess() {
     const text = document.getElementById('installBannerText');
     const btn = document.getElementById('installBannerBtn');
     if (banner && text && btn) {
-      text.textContent = '📲 Toca compartir APP (□↑) y elige "Agregar a pantalla de inicio"';
+      text.textContent = '📲 Toca compartir (□↑) y elige "Agregar a pantalla de inicio"';
       btn.style.display = 'none';
       banner.style.display = 'flex';
     }
