@@ -109,7 +109,7 @@ input::placeholder{color:var(--muted)}
   <button id="installBannerBtn" onclick="installNow()" style="background:#111;color:var(--accent);border:none;border-radius:7px;padding:8px 16px;font-weight:700;cursor:pointer;font-size:.82rem">Instalar ahora</button>
 </div>
 <div id="installSuccess" style="display:none;align-items:center;justify-content:center;gap:8px;background:var(--green);color:#111;font-size:.85rem;padding:12px 18px;font-weight:600;text-align:center">
-  ✅ ¡Unidad Belén se instaló! Búscala en tus <b>aplicaciones</b> o en tu <b>pantalla principal</b>.
+  ✅ ¡Unidad Belén se está instalando! Búscala en tus <b>aplicaciones</b> o en tu <b>pantalla principal</b>.
 </div>
 <nav>
   <button class="tab active" onclick="switchTab('verify',this)">🚗 Placa</button>
@@ -118,10 +118,10 @@ input::placeholder{color:var(--muted)}
 <main>
   <!-- VERIFY -->
   <div class="page active" id="page-verify">
-    <div id="regime-indicator">RÉGIMEN 1</div>
+    <div id="regime-indicator">RÉGIMEN 1, 2, 3</div>
     <div class="verify-big">
       <p class="section-title">Ingresa la placa</p>
-      <input type="text" id="verify-input" placeholder="ABC-123" maxlength="10" oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter')checkPlate()">
+      <input type="text" id="verify-input" placeholder="ABC1234" maxlength="10" oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter')checkPlate()">
       <button class="btn btn-accent btn-full" style="max-width:360px;margin:0 auto" onclick="checkPlate()">Verificar placa</button>
       <div class="result-box" id="result-box">
         <div class="result-status"><span class="status-dot"></span><span id="result-status-text"></span></div>
